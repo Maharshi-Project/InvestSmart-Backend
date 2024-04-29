@@ -18,8 +18,8 @@ load_dotenv()
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-OPENAI_API_KEY = 'sk-proj-vsJ4fg4tCUVlUVSYOTM5T3BlbkFJEgiifcEJfqFkco1mkWzZ'
-os.environ['GOOGLE_API_KEY'] = 'AIzaSyAmgeetTHhK8ZurIMUbHm03jieRqpeP_9A'
+# OPENAI_API_KEY = 'sk-proj-vsJ4fg4tCUVlUVSYOTM5T3BlbkFJEgiifcEJfqFkco1mkWzZ'
+# os.environ['GOOGLE_API_KEY'] = 'AIzaSyAmgeetTHhK8ZurIMUbHm03jieRqpeP_9A'
 
 app = FastAPI()
 
