@@ -9,7 +9,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 
 from langchain import PromptTemplate
-from langchain.document_loaders import WebBaseLoader
+from langchain_community.document_loaders import WebBaseLoader
 from langchain.schema import StrOutputParser
 from langchain.schema.prompt_template import format_document
 
@@ -18,13 +18,13 @@ load_dotenv()
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# OPENAI_API_KEY = 'sk-proj-vsJ4fg4tCUVlUVSYOTM5T3BlbkFJEgiifcEJfqFkco1mkWzZ'
-# os.environ['GOOGLE_API_KEY'] = 'AIzaSyAmgeetTHhK8ZurIMUbHm03jieRqpeP_9A'
-
 app = FastAPI()
 
 urls = []
 query = ""
+
+os.environ['OPENAI_API_KEY'] ='sk-proj-xbuwz81wSU3LWQRuKEOpT3BlbkFJnMK3FnswKawmhzv5Wxxb'
+os.environ['GOOGLE_API_KEY'] ='AIzaSyAmgeetTHhK8ZurIMUbHm03jieRqpeP_9A'
 
 gemini_llm = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7, top_p=0.85)
 
@@ -33,7 +33,6 @@ gpt_llm = OpenAI(temperature=0.9, max_tokens=500)
 
 class request(BaseModel):
     urls : list[str]
-    count : int
     query : str
 
 class response(BaseModel):
@@ -71,6 +70,7 @@ async def getURLs(data : request):
     print(chain)
     result = chain({"question": query}, return_only_outputs=True)
     return result
+    
 
 @app.post("/getSummary")
 async def getSummary(data : request):
