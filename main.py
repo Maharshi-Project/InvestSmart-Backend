@@ -15,7 +15,7 @@ from langchain.schema.prompt_template import format_document
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 from googletrans import Translator, LANGUAGES
-
+import re
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -27,8 +27,6 @@ vectorindex_openai = None
 urlData = None
 givenLanguage = None
 
-os.environ['OPENAI_API_KEY'] ='sk-proj-xbuwz81wSU3LWQRuKEOpT3BlbkFJnMK3FnswKawmhzv5Wxxb'
-os.environ['GOOGLE_API_KEY'] ='AIzaSyAmgeetTHhK8ZurIMUbHm03jieRqpeP_9A'
 
 gemini_llm = ChatGoogleGenerativeAI(model="gemini-pro",temperature=0.7, top_p=0.85)
 
@@ -40,6 +38,11 @@ class requestURLs(BaseModel):
 
 class requestQuery(BaseModel):
     query : str
+
+class responseQuery(BaseModel):
+    response : str
+    source : str
+    language_code : str
 
 
 # Configure CORS
@@ -79,6 +82,20 @@ def translate_to_other(query,srcLang,destLang):
         print("Translation Error:", e)
         raise HTTPException(status_code=400, detail="Language Conversion Error")
 
+def check_url(url):
+    moneycontrol_pattern = r'^https:\/\/www\.moneycontrol\.com\/'
+    bbc_pattern = r'^https:\/\/www\.bbc\.com\/'
+    business_standards = r'^https:\/\/www.business-standard\.com\/'
+
+    if re.match(moneycontrol_pattern, url):
+        return 1
+    elif re.match(bbc_pattern, url):
+        return 1
+    elif re.match(business_standards, url):
+        return 1
+    else:
+        return 0
+
 @app.get("/hello")
 async def hello():
     return "Welcome"
@@ -88,6 +105,18 @@ async def getURLs(data : requestURLs):
     urls = data.urls
     # load data
     # print(urls)
+    valid = True
+    for url in urls:
+        result = check_url(url)
+        if(result == 0):
+            if result == 0:
+            valid = False
+            print(f"Error: Invalid URL - {url}")
+
+    if not valid:
+        print("Please check the validity of the provided URLs.")
+    else:
+        print("All URLs are valid.")
     loader = UnstructuredURLLoader(urls=urls)
     # print(loader)
     global urlData
@@ -102,9 +131,7 @@ async def getURLs(data : requestURLs):
     # print("Docs types ")
     # print(type(docs))
     # print(len(docs))
-    # Create the embeddings of the chunks using openAIEmbeddings
     embeddings = OpenAIEmbeddings()
-    # Pass the documents and embeddings inorder to create FAISS vector index
     vectorindex_openai = FAISS.from_documents(docs, embeddings)
     # print(vectorindex_openai)
     return "URLs Loaded!!"
@@ -113,6 +140,7 @@ async def getURLs(data : requestURLs):
 async def getResponse(data : requestQuery):
     query = data.query
     global vectorindex_openai
+    global givenLanguage
     # print(vectorindex_openai)
     if vectorindex_openai is None:
         raise HTTPException(status_code=400, detail="Vector index not initialized. Please provide URLs.")
@@ -124,17 +152,22 @@ async def getResponse(data : requestQuery):
         # print(chain)
         result = chain({"question": new_query}, return_only_outputs=True)
         result["answer"] = translate_to_other(result["answer"],'en',detected_language)
-        return result
+        response_query_instance = responseQuery(response=result["answer"], source=result["sources"],language_code=givenLanguage)
+        print(response_query_instance)
+        return response_query_instance
     else:
         print(vectorindex_openai.as_retriever)
         chain = RetrievalQAWithSourcesChain.from_llm(llm=gpt_llm, retriever=vectorindex_openai.as_retriever())
         print(chain)
         result = chain({"question": query}, return_only_outputs=True)
-        return result
+        response_query_instance = responseQuery(response=result["answer"], source=result["sources"],language_code=givenLanguage)
+        print(response_query_instance)
+        return response_query_instance
 
 @app.post("/getSummary")
 async def getSummary():
     global urlData
+    global givenLanguage
     if urlData is None:
         raise HTTPException(status_code=400, detail="Please provide URLs.")
 
@@ -157,4 +190,6 @@ async def getSummary():
     )
     input_text = stuff_chain.invoke(urlData)
     input_text = translate_to_other(input_text,'en',givenLanguage)
-    return input_text
+    response_query_instance = responseQuery(response=input_text, language_code=givenLanguage, source="")
+    print(response_query_instance)
+    return response_query_instance
